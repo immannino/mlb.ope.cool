@@ -281,7 +281,7 @@
             <button class="btn btn-default" @click="fetchScores">↻ NOW</button>
 
             <span class="pipe" v-if="lastUpdated">|</span>
-            <span v-if="lastUpdated" style="opacity:0.55;font-size:11px;">{{ lastUpdated }}</span>
+            <span v-if="lastUpdated" style="opacity:0.55;font-size:11px;">LAST UPDATED: {{ lastUpdated }}</span>
         </div>
 
         <div v-if="teamFilter" class="details-bar" style="padding:3px 8px;font-size:11px;">
