@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:sakofchit.github.io)",
+      "WebFetch(domain:site.api.espn.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:unpkg.com)"
+    ]
+  }
+}

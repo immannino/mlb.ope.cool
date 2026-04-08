@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta id="refresh-meta" http-equiv="refresh" content="60">
+    <title>MLB SCOREBOARD</title>
+    <link rel="stylesheet" href="https://unpkg.com/@sakun/system.css" />
+    <script src="https://cdn.jsdelivr.net/npm/vue@3"></script>
+    <style>
+        * { font-family: monospace !important; }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            background: #aaaaaa;
+            filter: grayscale(1);
+            min-height: 100vh;
+        }
+
+        #app {
+            padding: 8px;
+            max-width: 1280px;
+            margin: 0 auto;
+        }
+
+        /* ── Config bar ── */
+        .config-bar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 8px;
+            font-size: 12px;
+        }
+        .config-bar label { font-size: 11px; }
+        .config-bar input[type="text"] {
+            width: 5ch;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+        .config-bar select { font-size: 12px; }
+        .pipe { opacity: 0.4; }
+
+        /* ── Game grid ── */
+        .scoreboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .game-card { cursor: pointer; }
+        .game-card:hover .title-bar { opacity: 0.8; }
+        .game-card .window-pane { overflow: hidden; }
+
+        /* ── Score rows ── */
+        .score-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 2px 0;
+            font-size: 13px;
+        }
+        .team-abbr {
+            display: inline-block;
+            width: 4ch;
+            font-weight: bold;
+            letter-spacing: 0.05em;
+        }
+        .score-num {
+            display: inline-block;
+            width: 2ch;
+            text-align: right;
+            font-size: 1.15em;
+            font-weight: bold;
+        }
+        .score-bar {
+            flex: 1;
+            height: 8px;
+            background: #ccc;
+            border: 1px solid #888;
+            overflow: hidden;
+        }
+        .score-bar-fill {
+            height: 100%;
+            background: #000;
+            transition: width 0.3s;
+        }
+        .winner-marker { font-size: 9px; margin-left: 2px; }
+
+        /* ── Status line ── */
+        .status-line {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+            padding-top: 3px;
+        }
+        .live-dot::before {
+            content: "● ";
+            animation: blink 1s step-start infinite;
+        }
+        @keyframes blink { 50% { opacity: 0; } }
+        .final-label { font-weight: bold; }
+        .pre-label { opacity: 0.65; }
+
+        /* ── Details bar content ── */
+        .bar-content {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            padding: 2px 8px;
+            width: 100%;
+        }
+
+        /* ── Centered empty state ── */
+        .empty-pane {
+            padding: 24px;
+            text-align: center;
+            font-size: 13px;
+            opacity: 0.7;
+        }
+
+        /* ── Focus overlay ── */
+        .focus-overlay {
+            position: fixed;
+            inset: 0;
+            background: #aaaaaa;
+            z-index: 1000;
+            overflow-y: auto;
+            padding: 12px;
+        }
+        .focus-window {
+            max-width: 680px;
+            margin: 0 auto;
+        }
+
+        /* ── Big score ── */
+        .big-score {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            padding: 20px 16px;
+        }
+        .big-score .team-block { text-align: center; }
+        .big-score .ha-label { font-size: 10px; opacity: 0.6; }
+        .big-score .abbr { font-size: 1.6em; font-weight: bold; letter-spacing: 0.1em; }
+        .big-score .runs { font-size: 3em; font-weight: bold; line-height: 1; }
+        .big-score .record { font-size: 10px; opacity: 0.6; margin-top: 4px; }
+
+        /* ── Line score table ── */
+        .linescore {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+        }
+        .linescore th, .linescore td {
+            border: 1px solid #999;
+            padding: 2px 5px;
+            text-align: center;
+            white-space: nowrap;
+        }
+        .linescore th { background: #ddd; font-size: 10px; }
+        .linescore .col-team { text-align: left; font-weight: bold; min-width: 4ch; }
+        .linescore .col-rhe { font-weight: bold; background: #ddd; }
+        .linescore .cur-inning { background: #000 !important; color: #fff !important; }
+
+        /* ── Situation ── */
+        .situation-box {
+            padding: 8px 10px;
+            font-size: 12px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            align-items: center;
+        }
+        .bases-grid {
+            display: grid;
+            grid-template-areas:
+                ". b2 ."
+                "b3 .  b1"
+                ". hp .";
+            grid-template-columns: 1.4em 1.4em 1.4em;
+            gap: 1px;
+            font-size: 1.1em;
+        }
+        .bases-grid .b1 { grid-area: b1; }
+        .bases-grid .b2 { grid-area: b2; }
+        .bases-grid .b3 { grid-area: b3; }
+        .bases-grid .hp { grid-area: hp; font-size: 0.65em; opacity: 0.4; text-align: center; }
+        .base-on  { color: #000; }
+        .base-off { opacity: 0.18; }
+
+        /* ── Leaders ── */
+        .leaders-box { padding: 6px 10px; font-size: 11px; }
+        .leaders-box .leader-row { margin-bottom: 3px; }
+
+        /* ── Team filter badge ── */
+        .filter-badge {
+            background: #000;
+            color: #fff;
+            padding: 1px 5px;
+            font-size: 11px;
+        }
+
+        /* ── Loading ── */
+        .loading-pane {
+            padding: 32px;
+            text-align: center;
+            letter-spacing: 0.15em;
+            animation: blink 1.2s step-start infinite;
+        }
+
+        /* ── Linescore scroll wrapper ── */
+        .linescore-wrap { overflow-x: auto; padding: 8px 10px; }
+    </style>
+</head>
+<body>
+<div id="app">
+
+    <!-- ════════ TOP CONTROL WINDOW ════════ -->
+    <div class="window" style="width:100%;">
+        <div class="title-bar">
+            <div class="title">⚾ MLB SCOREBOARD</div>
+        </div>
+
+        <div class="details-bar config-bar">
+            <label>TEAM</label>
+            <input
+                type="text"
+                v-model="teamFilterInput"
+                placeholder="ABV"
+                maxlength="4"
+                @keyup.enter="applyTeamFilter"
+                style="width:5ch;"
+            />
+            <button class="btn" @click="applyTeamFilter">FILTER</button>
+            <button class="btn" v-if="teamFilter" @click="clearTeamFilter">CLR</button>
+
+            <span class="pipe">|</span>
+
+            <label>REFRESH</label>
+            <select v-model="refreshInterval" @change="updateRefreshInterval">
+                <option value="30">30s</option>
+                <option value="60">1min</option>
+                <option value="120">2min</option>
+                <option value="300">5min</option>
+                <option value="600">10min</option>
+                <option value="0">OFF</option>
+            </select>
+
+            <span class="pipe">|</span>
+            <button class="btn btn-default" @click="fetchScores">↻ NOW</button>
+
+            <span class="pipe" v-if="lastUpdated">|</span>
+            <span v-if="lastUpdated" style="opacity:0.55;font-size:11px;">{{ lastUpdated }}</span>
+        </div>
+
+        <div v-if="teamFilter" class="details-bar" style="padding:3px 8px;font-size:11px;">
+            Showing: <span class="filter-badge">{{ teamFilter }}</span>
+            &nbsp;
+            <button class="btn" @click="clearTeamFilter" style="font-size:10px;">× clear</button>
+        </div>
+    </div>
+
+    <!-- ════════ LOADING ════════ -->
+    <div v-if="loading" class="window" style="margin-top:8px;">
+        <div class="window-pane loading-pane">FETCHING SCORES...</div>
+    </div>
+
+    <!-- ════════ ERROR ════════ -->
+    <div v-else-if="error" class="window" style="margin-top:8px;">
+        <div class="title-bar"><div class="title">⚠ ERROR</div></div>
+        <div class="window-pane" style="padding:12px;">
+            {{ error }}<br>
+            <button class="btn btn-default" style="margin-top:8px;" @click="fetchScores">RETRY</button>
+        </div>
+    </div>
+
+    <!-- ════════ NO GAMES ════════ -->
+    <div v-else-if="filteredEvents.length === 0" class="window" style="margin-top:8px;">
+        <div class="window-pane empty-pane">
+            NO GAMES TODAY{{ teamFilter ? ` FOR ${teamFilter}` : '' }}.
+        </div>
+    </div>
+
+    <!-- ════════ GAME GRID ════════ -->
+    <div v-else class="scoreboard-grid">
+        <div
+            v-for="game in filteredEvents"
+            :key="game.id"
+            class="window game-card"
+            @click="openGame(game.id)"
+        >
+            <div class="title-bar">
+                <div class="title">{{ game.shortName }}</div>
+            </div>
+            <div class="window-pane" style="padding:8px 10px 6px;">
+
+                <div v-for="team in sortedCompetitors(game)" :key="team.id" class="score-row">
+                    <span class="team-abbr">{{ team.team.abbreviation }}</span>
+                    <span class="score-num">{{ team.score || '0' }}</span>
+                    <div class="score-bar">
+                        <div class="score-bar-fill"
+                            :style="{ width: scoreBarPct(team.score, game) + '%' }">
+                        </div>
+                    </div>
+                    <span class="winner-marker">{{ isWinner(team, game) ? '◀' : '' }}</span>
+                </div>
+
+                <div class="separator" style="margin:5px 0 3px;"></div>
+
+                <div class="status-line">
+                    <span>
+                        <span v-if="isLive(game)" class="live-dot"></span>
+                        <span :class="statusClass(game)">{{ game.status.type.shortDetail }}</span>
+                    </span>
+                    <span v-if="getSituation(game) && isLive(game)" style="letter-spacing:0.04em;">
+                        {{ basesCompact(getSituation(game)) }}&thinsp;{{ getSituation(game).outs }}out
+                    </span>
+                </div>
+            </div>
+
+            <div class="details-bar">
+                <div class="bar-content">
+                    <span>{{ getRecords(game) }}</span>
+                    <span>{{ getWeather(game) }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ════════ FOCUSED GAME OVERLAY ════════ -->
+    <div v-if="focusedGame" class="focus-overlay">
+        <div class="focus-window">
+            <div class="window">
+                <div class="title-bar">
+                    <button class="close" @click="closeGame"><span>Close</span></button>
+                    <div class="title">{{ focusedGame.name }}</div>
+                </div>
+
+                <div class="window-pane">
+
+                    <!-- Big score -->
+                    <div class="big-score">
+                        <div v-for="team in sortedCompetitors(focusedGame)" :key="team.id" class="team-block">
+                            <div class="ha-label">{{ team.homeAway.toUpperCase() }}</div>
+                            <div class="abbr">{{ team.team.abbreviation }}</div>
+                            <div class="runs">{{ team.score || '0' }}</div>
+                            <div class="record">{{ getRecord(team) }}</div>
+                        </div>
+                    </div>
+
+                    <div class="details-bar">
+                        <div class="bar-content">
+                            <span>
+                                <span v-if="isLive(focusedGame)" class="live-dot"></span>
+                                <strong>{{ focusedGame.status.type.detail || focusedGame.status.type.shortDetail }}</strong>
+                            </span>
+                            <span>{{ getVenue(focusedGame) }}</span>
+                        </div>
+                    </div>
+
+                    <!-- Situation (live games only) -->
+                    <div v-if="getSituation(focusedGame) && isLive(focusedGame)" class="situation-box">
+                        <div class="bases-grid">
+                            <span class="b2" :class="getSituation(focusedGame).onSecond ? 'base-on' : 'base-off'">◆</span>
+                            <span class="b3" :class="getSituation(focusedGame).onThird  ? 'base-on' : 'base-off'">◆</span>
+                            <span class="b1" :class="getSituation(focusedGame).onFirst  ? 'base-on' : 'base-off'">◆</span>
+                            <span class="hp">⌂</span>
+                        </div>
+                        <div style="font-size:12px;line-height:1.7;">
+                            <div>OUTS&nbsp;&nbsp;{{ getSituation(focusedGame).outs }}</div>
+                            <div>COUNT {{ getSituation(focusedGame).balls }}-{{ getSituation(focusedGame).strikes }}</div>
+                        </div>
+                        <div v-if="getSituation(focusedGame).batter || getSituation(focusedGame).pitcher"
+                             style="font-size:11px;line-height:1.8;">
+                            <div v-if="getSituation(focusedGame).batter">
+                                BAT: {{ getSituation(focusedGame).batter.athlete?.displayName }}
+                            </div>
+                            <div v-if="getSituation(focusedGame).pitcher">
+                                PIT: {{ getSituation(focusedGame).pitcher.athlete?.displayName }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="separator"></div>
+
+                    <!-- Line score -->
+                    <div class="linescore-wrap">
+                        <table class="linescore">
+                            <thead>
+                                <tr>
+                                    <th class="col-team"></th>
+                                    <th v-for="n in lineScoreInnings(focusedGame)" :key="n"
+                                        :class="{ 'cur-inning': isCurrentInning(focusedGame, n) }">
+                                        {{ n }}
+                                    </th>
+                                    <th class="col-rhe">R</th>
+                                    <th class="col-rhe">H</th>
+                                    <th class="col-rhe">E</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="team in sortedCompetitors(focusedGame)" :key="team.id">
+                                    <td class="col-team">{{ team.team.abbreviation }}</td>
+                                    <td v-for="n in lineScoreInnings(focusedGame)" :key="n"
+                                        :class="{ 'cur-inning': isCurrentInning(focusedGame, n) }">
+                                        {{ getInningScore(team, n) }}
+                                    </td>
+                                    <td class="col-rhe">{{ team.score || '0' }}</td>
+                                    <td class="col-rhe">{{ getStat(team, 'hits') }}</td>
+                                    <td class="col-rhe">{{ getStat(team, 'errors') }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Leaders -->
+                    <div v-if="getLeaders(focusedGame).length">
+                        <div class="separator"></div>
+                        <div class="leaders-box">
+                            <div v-for="cat in getLeaders(focusedGame)" :key="cat.name" class="leader-row">
+                                <strong>{{ cat.name }}:</strong>
+                                <span v-for="(a, i) in cat.leaders" :key="i">
+                                    {{ a.athlete?.shortName || a.athlete?.displayName }}
+                                    ({{ a.displayValue }})<span v-if="i < cat.leaders.length - 1">, </span>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Broadcast + weather -->
+                    <div v-if="getBroadcast(focusedGame) || getWeather(focusedGame)" class="details-bar">
+                        <div class="bar-content">
+                            <span>{{ getBroadcast(focusedGame) ? '📺 ' + getBroadcast(focusedGame) : '' }}</span>
+                            <span>{{ getWeather(focusedGame) }}</span>
+                        </div>
+                    </div>
+
+                    <div style="padding:10px;">
+                        <button class="btn btn-default" @click="closeGame">← BACK TO SCOREBOARD</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+const { createApp, ref, computed, onMounted, watch } = Vue;
+
+const API_URL = 'https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard';
+
+createApp({
+    setup() {
+        const events          = ref([]);
+        const loading         = ref(true);
+        const error           = ref(null);
+        const focusedGameId   = ref(null);
+        const teamFilter      = ref('');
+        const teamFilterInput = ref('');
+        const refreshInterval = ref('60');
+        const lastUpdated     = ref('');
+
+        onMounted(async () => {
+            const storedInterval = localStorage.getItem('mlb_refresh');
+            if (storedInterval) refreshInterval.value = storedInterval;
+            applyRefreshMeta(refreshInterval.value);
+
+            const storedTeam = localStorage.getItem('mlb_team');
+            if (storedTeam) { teamFilter.value = storedTeam; teamFilterInput.value = storedTeam; }
+
+            // Deep-link via URL hash: #game/401234567 or #team/NYY
+            const hash = location.hash.slice(1);
+            if (hash.startsWith('game/')) {
+                focusedGameId.value = hash.slice(5);
+            } else if (hash.startsWith('team/')) {
+                const t = hash.slice(5).toUpperCase();
+                teamFilter.value = t;
+                teamFilterInput.value = t;
+                localStorage.setItem('mlb_team', t);
+            }
+
+            await fetchScores();
+        });
+
+        // ── Data ──────────────────────────────────────────────────────────────
+        const fetchScores = async () => {
+            loading.value = true;
+            error.value = null;
+            try {
+                const res = await fetch(API_URL);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+                events.value = data.events || [];
+                lastUpdated.value = new Date().toLocaleTimeString();
+            } catch (e) {
+                error.value = e.message;
+            } finally {
+                loading.value = false;
+            }
+        };
+
+        // ── Meta refresh ──────────────────────────────────────────────────────
+        const applyRefreshMeta = (val) => {
+            const meta = document.getElementById('refresh-meta');
+            if (!meta) return;
+            const n = parseInt(val);
+            if (!n) meta.removeAttribute('content');
+            else meta.setAttribute('content', String(n));
+        };
+
+        const updateRefreshInterval = () => {
+            localStorage.setItem('mlb_refresh', refreshInterval.value);
+            applyRefreshMeta(refreshInterval.value);
+        };
+
+        // ── Team filter ───────────────────────────────────────────────────────
+        const applyTeamFilter = () => {
+            const val = teamFilterInput.value.trim().toUpperCase();
+            teamFilter.value = val;
+            if (val) {
+                localStorage.setItem('mlb_team', val);
+                location.hash = `team/${val}`;
+            } else {
+                clearTeamFilter();
+            }
+        };
+
+        const clearTeamFilter = () => {
+            teamFilter.value = '';
+            teamFilterInput.value = '';
+            localStorage.removeItem('mlb_team');
+            if (!focusedGameId.value) location.hash = '';
+        };
+
+        // ── Game focus ────────────────────────────────────────────────────────
+        const openGame  = (id) => { focusedGameId.value = id; location.hash = `game/${id}`; };
+        const closeGame = ()   => {
+            focusedGameId.value = null;
+            location.hash = teamFilter.value ? `team/${teamFilter.value}` : '';
+        };
+
+        // ── Computed ──────────────────────────────────────────────────────────
+        const filteredEvents = computed(() => {
+            if (!teamFilter.value) return events.value;
+            return events.value.filter(e =>
+                e.competitions[0]?.competitors?.some(c =>
+                    c.team.abbreviation.toUpperCase() === teamFilter.value
+                )
+            );
+        });
+
+        const focusedGame = computed(() =>
+            focusedGameId.value ? events.value.find(e => e.id === focusedGameId.value) : null
+        );
+
+        watch(focusedGame, (game) => {
+            if (!game) {
+                document.title = 'MLB SCOREBOARD';
+                return;
+            }
+            const title = sortedCompetitors(game).map(t =>
+                `${t.team.abbreviation}: ${t.score || '0'}`
+            ).join('  ');
+            document.title = title;
+        });
+
+        // ── Helpers ───────────────────────────────────────────────────────────
+        const sortedCompetitors = (game) =>
+            [...(game.competitions[0]?.competitors || [])].sort(a => a.homeAway === 'away' ? -1 : 1);
+
+        const isLive  = (game) => game.status.type.state === 'in';
+        const isFinal = (game) => game.status.type.state === 'post';
+
+        const statusClass = (game) => ({
+            'live-dot':    isLive(game),
+            'final-label': isFinal(game),
+            'pre-label':   game.status.type.state === 'pre',
+        });
+
+        const getSituation = (game) => game.competitions[0]?.situation;
+        const getVenue     = (game) => game.competitions[0]?.venue?.fullName || '';
+
+        const getWeather = (game) => {
+            const w = game.weather;
+            if (!w?.temperature) return '';
+            return `${w.temperature}°F${w.displayValue ? ' ' + w.displayValue : ''}`;
+        };
+
+        const getBroadcast = (game) => {
+            const bc = game.competitions[0]?.broadcasts || [];
+            return bc.flatMap(b => b.names || []).join(', ');
+        };
+
+        const getRecords = (game) =>
+            sortedCompetitors(game).map(c => {
+                const rec = c.records?.find(r => r.type === 'total');
+                return `${c.team.abbreviation}${rec ? ' ' + rec.summary : ''}`;
+            }).join('  ');
+
+        const getRecord = (team) =>
+            (team.records?.find(r => r.type === 'total'))?.summary || '';
+
+        const isWinner    = (team, game) => isFinal(game) && team.winner === true;
+
+        const scoreBarPct = (score, game) => {
+            const max = Math.max(1, ...(game.competitions[0]?.competitors?.map(c => parseInt(c.score) || 0) || []));
+            return Math.min(100, ((parseInt(score) || 0) / max) * 100);
+        };
+
+        const basesCompact = (sit) => {
+            if (!sit) return '';
+            return (sit.onThird ? '◆' : '◇') + (sit.onSecond ? '◆' : '◇') + (sit.onFirst ? '◆' : '◇');
+        };
+
+        const lineScoreInnings = (game) => {
+            const comps = game.competitions[0]?.competitors || [];
+            const max = Math.max(9, ...comps.map(c => c.linescores?.length || 0));
+            return Array.from({ length: max }, (_, i) => i + 1);
+        };
+
+        const isCurrentInning = (game, n) => isLive(game) && game.status.period === n;
+
+        const getInningScore = (team, n) => {
+            const ls = team.linescores;
+            if (!ls || ls[n - 1] === undefined) return '-';
+            return ls[n - 1].displayValue ?? ls[n - 1].value ?? '-';
+        };
+
+        const getStat = (team, name) => {
+            const s = (team.statistics || []).find(s => s.name === name);
+            return s?.displayValue || '0';
+        };
+
+        const getLeaders = (game) => {
+            const out = [];
+            for (const comp of (game.competitions[0]?.competitors || [])) {
+                for (const cat of (comp.leaders || [])) {
+                    if (cat.leaders?.length) {
+                        out.push({
+                            name: `${comp.team.abbreviation} ${cat.displayName}`,
+                            leaders: cat.leaders.slice(0, 2),
+                        });
+                    }
+                }
+            }
+            return out.slice(0, 6);
+        };
+
+        return {
+            events, loading, error,
+            focusedGameId, focusedGame,
+            teamFilter, teamFilterInput,
+            refreshInterval, lastUpdated,
+            filteredEvents,
+            fetchScores,
+            updateRefreshInterval,
+            applyTeamFilter, clearTeamFilter,
+            openGame, closeGame,
+            sortedCompetitors,
+            isLive, isFinal, statusClass,
+            getSituation, getVenue, getWeather, getBroadcast,
+            getRecords, getRecord,
+            isWinner, scoreBarPct,
+            basesCompact,
+            lineScoreInnings, isCurrentInning, getInningScore,
+            getStat, getLeaders,
+        };
+    }
+}).mount('#app');
+</script>
+</body>
+</html>
