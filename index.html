@@ -1,12 +1,38 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <!-- Site Behavior tags -->
     <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta id="refresh-meta" http-equiv="refresh" content="60">
-    <title>MLB SCOREBOARD</title>
+
+    <!-- Basic site info-->
+    <meta name="title" data-hid="title" content="MLB DASHBOARD">
+    <meta name="description" data-hid="description" content="a simple mlb dashboard">
+
+    <!-- Open Graph (Facebook/Linkedin) tags -->
+    <!-- Testing tool: https://developers.facebook.com/tools/debug/ -->
+    <meta property="og:site_name" content="mlb dot ope dot cool">
+    <meta property="og:locale" content="en_US">
+    <meta property="og:url" content="https://mlb.ope.cool">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="MLB DASHBOARD">
+    <meta property="og:description" content="a simple mlb dashboard">
+    <meta property="og:image" content="">
+
+    <!-- Twitter tags -->
+    <!-- Testing tool: https://cards-dev.twitter.com/validator -->
+    <meta name="twitter:site" content="https://mlb.ope.cool">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="MLB DASHBOARD">
+    <meta name="twitter:description" content="a simple mlb dashboard">
+    <meta name="twitter:image" content="">
+    <meta name="twitter:image:alt" content="">
+    <title>MLB DASHBOARD</title>
+
     <link rel="stylesheet" href="https://unpkg.com/@sakun/system.css" />
     <script src="https://cdn.jsdelivr.net/npm/vue@3"></script>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚾</text></svg>">
     <style>
         * { font-family: monospace !important; }
 
@@ -53,6 +79,7 @@
         .game-card { cursor: pointer; }
         .game-card:hover .title-bar { opacity: 0.8; }
         .game-card .window-pane { overflow: hidden; }
+        .focus-window .window-pane { overflow: visible; }
 
         /* ── Score rows ── */
         .score-row {
