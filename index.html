@@ -30,7 +30,6 @@
     <meta name="twitter:image:alt" content="">
     <title>MLB DASHBOARD</title>
 
-    <meta id="refresh-meta" http-equiv="refresh" content="60">
     <link rel="stylesheet" href="https://unpkg.com/@sakun/system.css" />
     <script src="https://cdn.jsdelivr.net/npm/vue@3"></script>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚾</text></svg>">
@@ -493,11 +492,17 @@ createApp({
         const teamFilterInput = ref('');
         const refreshInterval = ref('60');
         const lastUpdated     = ref('');
+        let refreshTimer      = null;
+
+        const scheduleRefresh = (val) => {
+            clearInterval(refreshTimer);
+            const n = parseInt(val);
+            if (n) refreshTimer = setInterval(fetchScores, n * 1000);
+        };
 
         onMounted(async () => {
             const storedInterval = localStorage.getItem('mlb_refresh');
             if (storedInterval) refreshInterval.value = storedInterval;
-            applyRefreshMeta(refreshInterval.value);
 
             const storedTeam = localStorage.getItem('mlb_team');
             if (storedTeam) { teamFilter.value = storedTeam; teamFilterInput.value = storedTeam; }
@@ -514,11 +519,12 @@ createApp({
             }
 
             await fetchScores();
+            scheduleRefresh(refreshInterval.value);
         });
 
         // ── Data ──────────────────────────────────────────────────────────────
         const fetchScores = async () => {
-            loading.value = true;
+            loading.value = loading.value && events.value.length === 0; // only show spinner on first load
             error.value = null;
             try {
                 const res = await fetch(API_URL);
@@ -533,18 +539,9 @@ createApp({
             }
         };
 
-        // ── Meta refresh ──────────────────────────────────────────────────────
-        const applyRefreshMeta = (val) => {
-            const meta = document.getElementById('refresh-meta');
-            if (!meta) return;
-            const n = parseInt(val);
-            if (!n) meta.removeAttribute('content');
-            else meta.setAttribute('content', String(n));
-        };
-
         const updateRefreshInterval = () => {
             localStorage.setItem('mlb_refresh', refreshInterval.value);
-            applyRefreshMeta(refreshInterval.value);
+            scheduleRefresh(refreshInterval.value);
         };
 
         // ── Team filter ───────────────────────────────────────────────────────
